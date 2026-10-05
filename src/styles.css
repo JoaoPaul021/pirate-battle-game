@@ -633,25 +633,51 @@ kbd {
   text-shadow: 0 2px 2px rgb(0 0 0 / 50%);
 }
 
-.game-exit-button {
+.game-top-actions {
   position: absolute;
   top: 18px;
   right: 18px;
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.game-icon-button,
+.game-exit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgb(255 255 255 / 20%);
-  border-radius: 999px;
-  padding: 5px 12px 5px 7px;
   color: #fff4cf;
   background: rgb(10 35 45 / 78%);
   box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
   cursor: pointer;
 }
 
+.game-icon-button:hover:not(:disabled),
 .game-exit-button:hover {
   background: rgb(10 35 45 / 92%);
+}
+
+.game-icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  padding: 5px;
+}
+
+.game-icon-button img {
+  width: 30px;
+  height: 30px;
+}
+
+.game-exit-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 5px 12px 5px 7px;
 }
 
 .game-exit-button img {
@@ -694,6 +720,11 @@ kbd {
 
 .touch-controls--movement {
   left: 18px;
+  bottom: 18px;
+}
+
+.touch-controls--attacks {
+  right: 18px;
   bottom: 18px;
 }
 
@@ -805,9 +836,12 @@ kbd {
     font-size: 0.9rem;
   }
 
-  .game-exit-button {
+  .game-top-actions {
     top: 10px;
     right: 10px;
+  }
+
+  .game-exit-button {
     padding-right: 7px;
   }
 
@@ -842,6 +876,11 @@ kbd {
 
   .touch-controls--movement {
     left: 10px;
+    bottom: 10px;
+  }
+
+  .touch-controls--attacks {
+    right: 10px;
     bottom: 10px;
   }
 

@@ -1,28 +1,37 @@
 import { Application } from 'pixi.js'
 import type { GameConfig } from '../config/gameConfig'
+import { GameAudio } from './audio/GameAudio'
 import { GameInput } from './input/GameInput'
 import { GameRenderer } from './rendering/GameRenderer'
 import { GameSimulation } from './simulation/GameSimulation'
-import type { GameHudState, InputAction } from './types'
+import type {
+  GameHudState,
+  InputAction,
+  MatchSummary,
+  PauseReason,
+} from './types'
 
 type PirateGameCallbacks = {
   onReady: () => void
   onHudChange: (state: GameHudState) => void
   onError: (message: string) => void
-  onTimeExpired: () => void
+  onPauseChange: (paused: boolean, reason: PauseReason | null) => void
+  onMatchEnd: (summary: MatchSummary) => void
 }
 
 export class PirateGame {
   private readonly app = new Application()
   private readonly input = new GameInput()
+  private readonly audio = new GameAudio()
   private readonly simulation: GameSimulation
   private renderer?: GameRenderer
   private resizeObserver?: ResizeObserver
   private destroyed = false
   private initialized = false
   private ready = false
-  private lastHudSecond = -1
-  private timeExpiredSent = false
+  private paused = false
+  private finishedSent = false
+  private lastHudSignature = ''
 
   constructor(
     private readonly host: HTMLDivElement,
@@ -62,13 +71,18 @@ export class PirateGame {
       })
       this.resizeObserver.observe(this.host)
       this.input.attach()
+      window.addEventListener('blur', this.handleFocusLoss)
+      window.addEventListener('keydown', this.handlePauseKey)
+      document.addEventListener('visibilitychange', this.handleVisibilityChange)
       this.app.ticker.add(this.tick)
       this.ready = true
+      this.audio.start()
       this.emitHud(true)
       this.callbacks.onReady()
     } catch (error) {
       if (!this.destroyed) {
-        const message = error instanceof Error ? error.message : 'Unable to load game assets.'
+        const message =
+          error instanceof Error ? error.message : 'Unable to load game assets.'
         this.callbacks.onError(message)
         this.destroy()
       }
@@ -76,6 +90,10 @@ export class PirateGame {
   }
 
   setAction(action: InputAction, active: boolean) {
+    if (this.paused || this.simulation.isFinished()) {
+      return
+    }
+
     this.input.setAction(action, active)
   }
 
@@ -83,37 +101,97 @@ export class PirateGame {
     this.input.clear()
   }
 
-  private readonly tick = () => {
-    if (!this.ready || this.destroyed) {
+  togglePause() {
+    if (this.paused) {
+      this.resume()
+    } else {
+      this.pause('manual')
+    }
+  }
+
+  pause(reason: PauseReason) {
+    if (!this.ready || this.paused || this.simulation.isFinished()) {
       return
     }
 
-    const deltaSeconds = this.app.ticker.deltaMS / 1000
+    this.paused = true
+    this.input.clear()
+    this.audio.pause()
+    this.callbacks.onPauseChange(true, reason)
+  }
+
+  resume() {
+    if (!this.ready || !this.paused || this.simulation.isFinished()) {
+      return
+    }
+
+    this.paused = false
+    this.input.clear()
+    this.audio.resume()
+    this.callbacks.onPauseChange(false, null)
+  }
+
+  private readonly handleFocusLoss = () => {
+    this.pause('focus')
+  }
+
+  private readonly handleVisibilityChange = () => {
+    if (document.hidden) {
+      this.pause('focus')
+    }
+  }
+
+  private readonly handlePauseKey = (event: KeyboardEvent) => {
+    if (event.code !== 'Escape' || event.repeat) {
+      return
+    }
+
+    event.preventDefault()
+    this.togglePause()
+  }
+
+  private readonly tick = () => {
+    if (!this.ready || this.destroyed || this.paused) {
+      return
+    }
+
+    const deltaSeconds = Math.min(this.app.ticker.deltaMS / 1000, 0.05)
     this.simulation.update(deltaSeconds, this.input.getState())
-    this.renderer?.renderFrame()
+    const events = this.simulation.consumeEvents()
+    this.renderer?.renderFrame(deltaSeconds, events)
+    this.audio.handleEvents(events)
     this.emitHud(false)
 
-    if (this.simulation.isFinished() && !this.timeExpiredSent) {
-      this.timeExpiredSent = true
+    if (this.simulation.isFinished() && !this.finishedSent) {
+      const summary = this.simulation.getMatchSummary()
+
+      if (!summary) {
+        return
+      }
+
+      this.finishedSent = true
       this.input.clear()
-      this.callbacks.onTimeExpired()
+      this.audio.finish(summary.reason)
+      this.callbacks.onMatchEnd(summary)
     }
   }
 
   private emitHud(force: boolean) {
-    const remainingSeconds = this.simulation.getRemainingSeconds()
-
-    if (!force && remainingSeconds === this.lastHudSecond) {
-      return
-    }
-
-    this.lastHudSecond = remainingSeconds
-    this.callbacks.onHudChange({
+    const hud: GameHudState = {
       health: this.simulation.player.health,
       maxHealth: this.config.player.maxHealth,
       score: this.simulation.getScore(),
-      remainingSeconds,
-    })
+      remainingSeconds: this.simulation.getRemainingSeconds(),
+      enemyCount: this.simulation.enemies.length,
+    }
+    const signature = `${hud.health}:${hud.score}:${hud.remainingSeconds}:${hud.enemyCount}`
+
+    if (!force && signature === this.lastHudSignature) {
+      return
+    }
+
+    this.lastHudSignature = signature
+    this.callbacks.onHudChange(hud)
   }
 
   destroy() {
@@ -125,7 +203,10 @@ export class PirateGame {
     this.ready = false
     this.resizeObserver?.disconnect()
     this.input.destroy()
-
+    this.audio.destroy()
+    window.removeEventListener('blur', this.handleFocusLoss)
+    window.removeEventListener('keydown', this.handlePauseKey)
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
     if (this.initialized) {
       this.app.ticker.remove(this.tick)
       this.app.destroy(true, true)

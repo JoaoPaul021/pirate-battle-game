@@ -8,6 +8,14 @@ export type WeaponConfig = {
   damage: number
   projectileSpeed: number
   projectileLifetimeMs: number
+  projectileRadius: number
+}
+
+export type EnemyShipConfig = {
+  maxHealth: number
+  moveSpeed: number
+  rotationSpeed: number
+  collisionRadius: number
 }
 
 export type GameConfig = {
@@ -26,25 +34,22 @@ export type GameConfig = {
   enemies: {
     spawnIntervalMs: number
     minSpawnDistance: number
+    spawnPadding: number
     chaserWeight: number
     shooterWeight: number
-    chaser: {
-      maxHealth: number
-      moveSpeed: number
-      rotationSpeed: number
+    chaser: EnemyShipConfig & {
       collisionDamage: number
     }
-    shooter: {
-      maxHealth: number
-      moveSpeed: number
-      rotationSpeed: number
+    shooter: EnemyShipConfig & {
       attackRange: number
+      preferredRange: number
       weapon: WeaponConfig
     }
   }
   weapons: {
     front: WeaponConfig
     broadside: WeaponConfig
+    broadsideSpacing: number
   }
 }
 
@@ -127,24 +132,29 @@ export const createGameConfig = (options: GameOptions): GameConfig => ({
   enemies: {
     spawnIntervalMs: options.enemySpawnTime * 1000,
     minSpawnDistance: 260,
+    spawnPadding: 72,
     chaserWeight: 0.55,
     shooterWeight: 0.45,
     chaser: {
       maxHealth: 55,
       moveSpeed: 135,
       rotationSpeed: 2.2,
+      collisionRadius: 26,
       collisionDamage: 28,
     },
     shooter: {
       maxHealth: 70,
       moveSpeed: 105,
       rotationSpeed: 1.9,
+      collisionRadius: 27,
       attackRange: 360,
+      preferredRange: 280,
       weapon: {
         cooldownMs: 1400,
         damage: 12,
         projectileSpeed: 360,
         projectileLifetimeMs: 1800,
+        projectileRadius: 6,
       },
     },
   },
@@ -154,12 +164,15 @@ export const createGameConfig = (options: GameOptions): GameConfig => ({
       damage: 24,
       projectileSpeed: 620,
       projectileLifetimeMs: 1250,
+      projectileRadius: 6,
     },
     broadside: {
       cooldownMs: 1100,
       damage: 18,
       projectileSpeed: 500,
       projectileLifetimeMs: 1100,
+      projectileRadius: 6,
     },
+    broadsideSpacing: 22,
   },
 })

@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameConfig } from '../config/gameConfig'
 import TouchControl from '../components/TouchControl'
 import { PirateGame } from '../game/PirateGame'
-import type { GameHudState, InputAction } from '../game/types'
+import type {
+  GameHudState,
+  InputAction,
+  MatchSummary,
+  PauseReason,
+} from '../game/types'
 
 type GameScreenProps = {
   config: GameConfig
@@ -15,17 +20,24 @@ const formatTime = (seconds: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
 }
 
+const createInitialHud = (config: GameConfig): GameHudState => ({
+  health: config.player.maxHealth,
+  maxHealth: config.player.maxHealth,
+  score: 0,
+  remainingSeconds: Math.ceil(config.sessionDurationMs / 1000),
+  enemyCount: 0,
+})
+
 function GameScreen({ config, onExit }: GameScreenProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef<PirateGame | null>(null)
+  const [runId, setRunId] = useState(0)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'ended'>('loading')
   const [errorMessage, setErrorMessage] = useState('')
-  const [hud, setHud] = useState<GameHudState>({
-    health: config.player.maxHealth,
-    maxHealth: config.player.maxHealth,
-    score: 0,
-    remainingSeconds: Math.ceil(config.sessionDurationMs / 1000),
-  })
+  const [hud, setHud] = useState<GameHudState>(() => createInitialHud(config))
+  const [paused, setPaused] = useState(false)
+  const [pauseReason, setPauseReason] = useState<PauseReason | null>(null)
+  const [summary, setSummary] = useState<MatchSummary | null>(null)
 
   const healthPercent = useMemo(
     () => Math.max(0, Math.min(100, (hud.health / hud.maxHealth) * 100)),
@@ -46,7 +58,16 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         setErrorMessage(message)
         setStatus('error')
       },
-      onTimeExpired: () => setStatus('ended'),
+      onPauseChange: (isPaused, reason) => {
+        setPaused(isPaused)
+        setPauseReason(reason)
+      },
+      onMatchEnd: (matchSummary) => {
+        setSummary(matchSummary)
+        setPaused(false)
+        setPauseReason(null)
+        setStatus('ended')
+      },
     })
 
     gameRef.current = game
@@ -56,7 +77,7 @@ function GameScreen({ config, onExit }: GameScreenProps) {
       gameRef.current = null
       game.destroy()
     }
-  }, [config])
+  }, [config, runId])
 
   const setAction = (action: InputAction, active: boolean) => {
     gameRef.current?.setAction(action, active)
@@ -71,6 +92,26 @@ function GameScreen({ config, onExit }: GameScreenProps) {
     gameRef.current?.clearInput()
     onExit()
   }
+
+  const handleRestart = () => {
+    setStatus('loading')
+    setErrorMessage('')
+    setSummary(null)
+    setPaused(false)
+    setPauseReason(null)
+    setHud(createInitialHud(config))
+    setRunId((current) => current + 1)
+  }
+
+  const handlePause = () => {
+    gameRef.current?.togglePause()
+  }
+
+  const handleResume = () => {
+    gameRef.current?.resume()
+  }
+
+  const endTitle = summary?.reason === 'destroyed' ? 'Ship destroyed' : "Time's up"
 
   return (
     <section className="game-screen" aria-label="Pirate Battle match">
@@ -95,14 +136,31 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         </div>
       </div>
 
-      <button className="game-exit-button" type="button" onClick={handleExit}>
-        <img src="/png/default/ui/controls/icon_home.png" alt="" />
-        <span>Main Menu</span>
-      </button>
+      <div className="game-top-actions">
+        <button
+          className="game-icon-button"
+          type="button"
+          onClick={handlePause}
+          aria-label={paused ? 'Resume match' : 'Pause match'}
+          disabled={status !== 'ready' && !paused}
+        >
+          <img
+            src={paused ? '/png/default/ui/controls/icon_play.png' : '/png/default/ui/controls/icon_pause.png'}
+            alt=""
+          />
+        </button>
+        <button className="game-exit-button" type="button" onClick={handleExit}>
+          <img src="/png/default/ui/controls/icon_home.png" alt="" />
+          <span>Main Menu</span>
+        </button>
+      </div>
 
       <div className="desktop-control-hint" aria-hidden="true">
         <span><kbd>W</kbd> sail</span>
         <span><kbd>A</kbd><kbd>D</kbd> turn</span>
+        <span><kbd>Space</kbd> front</span>
+        <span><kbd>Q</kbd><kbd>E</kbd> broadside</span>
+        <span><kbd>Esc</kbd> pause</span>
       </div>
 
       <div className="touch-controls touch-controls--movement" aria-label="Touch movement controls">
@@ -123,6 +181,28 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         />
       </div>
 
+      <div className="touch-controls touch-controls--attacks" aria-label="Touch attack controls">
+        <TouchControl
+          label="Fire left broadside"
+          icon="/png/default/ui/controls/icon_fire_left.png"
+          {...bindAction('fireLeft')}
+        />
+        <TouchControl
+          label="Fire front cannon"
+          icon="/png/default/ui/controls/icon_fire_front.png"
+          {...bindAction('fireFront')}
+        />
+        <TouchControl
+          label="Fire right broadside"
+          icon="/png/default/ui/controls/icon_fire_right.png"
+          {...bindAction('fireRight')}
+        />
+      </div>
+
+      <p className="sr-only" aria-live="polite">
+        Health {hud.health} of {hud.maxHealth}. Score {hud.score}. Time remaining {hud.remainingSeconds} seconds. Enemies {hud.enemyCount}.
+      </p>
+
       {status === 'loading' && (
         <div className="game-message" role="status">
           <strong>Preparing the waters...</strong>
@@ -134,14 +214,29 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         <div className="game-message game-message--error" role="alert">
           <strong>Unable to start the battle</strong>
           <span>{errorMessage}</span>
+          <button type="button" onClick={handleRestart}>Try Again</button>
           <button type="button" onClick={handleExit}>Main Menu</button>
         </div>
       )}
 
-      {status === 'ended' && (
+      {paused && status === 'ready' && (
+        <div className="game-message game-message--pause" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <strong id="pause-title">Battle paused</strong>
+          <span>
+            {pauseReason === 'focus'
+              ? 'The match paused when the game lost focus. Resume when you are ready.'
+              : 'Timer, enemies, projectiles and cooldowns are suspended.'}
+          </span>
+          <button type="button" onClick={handleResume}>Resume</button>
+          <button type="button" onClick={handleExit}>Main Menu</button>
+        </div>
+      )}
+
+      {status === 'ended' && summary && (
         <div className="game-message" role="status">
-          <strong>Time's up</strong>
-          <span>Battle complete. Return to the main menu.</span>
+          <strong>{endTitle}</strong>
+          <span>Score: {summary.score} · Time played: {formatTime(summary.elapsedSeconds)}</span>
+          <button type="button" onClick={handleRestart}>Play Again</button>
           <button type="button" onClick={handleExit}>Main Menu</button>
         </div>
       )}
