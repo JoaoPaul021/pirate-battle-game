@@ -3,6 +3,51 @@ export type GameOptions = {
   enemySpawnTime: number
 }
 
+export type WeaponConfig = {
+  cooldownMs: number
+  damage: number
+  projectileSpeed: number
+  projectileLifetimeMs: number
+}
+
+export type GameConfig = {
+  sessionDurationMs: number
+  arena: {
+    width: number
+    height: number
+    padding: number
+  }
+  player: {
+    maxHealth: number
+    moveSpeed: number
+    rotationSpeed: number
+    collisionRadius: number
+  }
+  enemies: {
+    spawnIntervalMs: number
+    minSpawnDistance: number
+    chaserWeight: number
+    shooterWeight: number
+    chaser: {
+      maxHealth: number
+      moveSpeed: number
+      rotationSpeed: number
+      collisionDamage: number
+    }
+    shooter: {
+      maxHealth: number
+      moveSpeed: number
+      rotationSpeed: number
+      attackRange: number
+      weapon: WeaponConfig
+    }
+  }
+  weapons: {
+    front: WeaponConfig
+    broadside: WeaponConfig
+  }
+}
+
 export const GAME_OPTIONS_STORAGE_KEY = 'pirate-battle-options'
 
 export const GAME_OPTIONS_LIMITS = {
@@ -65,3 +110,56 @@ export const loadGameOptions = (): GameOptions => {
 export const saveGameOptions = (options: GameOptions) => {
   localStorage.setItem(GAME_OPTIONS_STORAGE_KEY, JSON.stringify(options))
 }
+
+export const createGameConfig = (options: GameOptions): GameConfig => ({
+  sessionDurationMs: options.sessionTime * 1000,
+  arena: {
+    width: 1280,
+    height: 720,
+    padding: 30,
+  },
+  player: {
+    maxHealth: 100,
+    moveSpeed: 220,
+    rotationSpeed: 2.8,
+    collisionRadius: 27,
+  },
+  enemies: {
+    spawnIntervalMs: options.enemySpawnTime * 1000,
+    minSpawnDistance: 260,
+    chaserWeight: 0.55,
+    shooterWeight: 0.45,
+    chaser: {
+      maxHealth: 55,
+      moveSpeed: 135,
+      rotationSpeed: 2.2,
+      collisionDamage: 28,
+    },
+    shooter: {
+      maxHealth: 70,
+      moveSpeed: 105,
+      rotationSpeed: 1.9,
+      attackRange: 360,
+      weapon: {
+        cooldownMs: 1400,
+        damage: 12,
+        projectileSpeed: 360,
+        projectileLifetimeMs: 1800,
+      },
+    },
+  },
+  weapons: {
+    front: {
+      cooldownMs: 420,
+      damage: 24,
+      projectileSpeed: 620,
+      projectileLifetimeMs: 1250,
+    },
+    broadside: {
+      cooldownMs: 1100,
+      damage: 18,
+      projectileSpeed: 500,
+      projectileLifetimeMs: 1100,
+    },
+  },
+})
