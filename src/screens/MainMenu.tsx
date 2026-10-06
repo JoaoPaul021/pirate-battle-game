@@ -1,4 +1,5 @@
 import GameButton from '../components/GameButton'
+import LastMatchSummary from '../components/LastMatchSummary'
 import MenuPanel from '../components/MenuPanel'
 import PendingMatchNotice from '../components/PendingMatchNotice'
 
@@ -36,6 +37,7 @@ function MainMenu({ onNavigate }: MainMenuProps) {
         </div>
       </div>
 
+      <LastMatchSummary />
       <PendingMatchNotice />
 
       <div className="secondary-actions">

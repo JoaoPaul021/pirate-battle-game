@@ -3,6 +3,7 @@ import type { GameConfig } from '../config/gameConfig'
 import { PLAYER_ID, PLAYER_NAME, type MatchRecord } from '../api/contracts'
 import { useRegisterMatch } from '../api/queries'
 import { saveLastMatch } from '../api/storage'
+import GameButton from '../components/GameButton'
 import TouchControl from '../components/TouchControl'
 import { PirateGame } from '../game/PirateGame'
 import type {
@@ -34,6 +35,8 @@ const createInitialHud = (config: GameConfig): GameHudState => ({
 function GameScreen({ config, onExit }: GameScreenProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef<PirateGame | null>(null)
+  const resumeButtonRef = useRef<HTMLButtonElement>(null)
+  const resultButtonRef = useRef<HTMLButtonElement>(null)
   const [runId, setRunId] = useState(0)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'ended'>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -49,6 +52,18 @@ function GameScreen({ config, onExit }: GameScreenProps) {
   useEffect(() => {
     registerRef.current = registerMatch.mutate
   }, [registerMatch.mutate])
+
+  useEffect(() => {
+    if (paused) {
+      resumeButtonRef.current?.focus()
+    }
+  }, [paused])
+
+  useEffect(() => {
+    if (status === 'ended') {
+      resultButtonRef.current?.focus()
+    }
+  }, [status])
 
   const healthPercent = useMemo(
     () => Math.max(0, Math.min(100, (hud.health / hud.maxHealth) * 100)),
@@ -139,7 +154,8 @@ function GameScreen({ config, onExit }: GameScreenProps) {
     gameRef.current?.resume()
   }
 
-  const endTitle = summary?.reason === 'destroyed' ? 'Ship destroyed' : "Time's up"
+  const resultTitle = summary?.reason === 'destroyed' ? 'Ship Lost' : 'Battle Complete'
+  const resultReason = summary?.reason === 'destroyed' ? 'Destroyed' : 'Time Up'
   const registrationLabel = registerMatch.isPending
     ? 'Saving match...'
     : registerMatch.isSuccess
@@ -239,46 +255,86 @@ function GameScreen({ config, onExit }: GameScreenProps) {
       </p>
 
       {status === 'loading' && (
-        <div className="game-message" role="status">
-          <strong>Preparing the waters...</strong>
-          <span>Loading textures and starting the simulation.</span>
+        <div className="game-dialog-backdrop">
+          <div className="game-dialog game-dialog--compact" role="status">
+            <strong>Preparing the waters...</strong>
+            <span>Loading textures and starting the simulation.</span>
+          </div>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="game-message game-message--error" role="alert">
-          <strong>Unable to start the battle</strong>
-          <span>{errorMessage}</span>
-          <button type="button" onClick={handleRestart}>Try Again</button>
-          <button type="button" onClick={handleExit}>Main Menu</button>
+        <div className="game-dialog-backdrop">
+          <div className="game-dialog game-dialog--compact game-dialog--error" role="alert">
+            <strong>Unable to start the battle</strong>
+            <span>{errorMessage}</span>
+            <div className="game-dialog-actions">
+              <GameButton compact onClick={handleRestart}>Try Again</GameButton>
+              <GameButton variant="secondary" compact onClick={handleExit}>Main Menu</GameButton>
+            </div>
+          </div>
         </div>
       )}
 
       {paused && status === 'ready' && (
-        <div className="game-message game-message--pause" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-          <strong id="pause-title">Battle paused</strong>
-          <span>
-            {pauseReason === 'focus'
-              ? 'The match paused when the game lost focus. Resume when you are ready.'
-              : 'Timer, enemies, projectiles and cooldowns are suspended.'}
-          </span>
-          <button type="button" onClick={handleResume}>Resume</button>
-          <button type="button" onClick={handleExit}>Main Menu</button>
+        <div className="game-dialog-backdrop">
+          <div
+            className="game-dialog game-dialog--pause"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pause-title"
+          >
+            <span className="game-dialog-eyebrow">Battle status</span>
+            <strong id="pause-title" className="game-dialog-title">Paused</strong>
+            <p>
+              {pauseReason === 'focus'
+                ? 'The battle paused when the game lost focus.'
+                : 'Timer, enemies, projectiles and cooldowns are suspended.'}
+            </p>
+            <div className="game-dialog-actions">
+              <GameButton ref={resumeButtonRef} onClick={handleResume}>Resume</GameButton>
+              <GameButton variant="secondary" onClick={handleExit}>Main Menu</GameButton>
+            </div>
+          </div>
         </div>
       )}
 
       {status === 'ended' && summary && (
-        <div className="game-message" role="status">
-          <strong>{endTitle}</strong>
-          <span>Score: {summary.score} · Time played: {formatTime(summary.elapsedSeconds)}</span>
-          <span className={registerMatch.isError ? 'registration-status registration-status--error' : 'registration-status'}>
-            {registrationLabel}
-          </span>
-          {registerMatch.isError && record && (
-            <button type="button" onClick={() => registerMatch.mutate(record)}>Retry Registration</button>
-          )}
-          <button type="button" onClick={handleRestart}>Play Again</button>
-          <button type="button" onClick={handleExit}>Main Menu</button>
+        <div className="game-dialog-backdrop">
+          <div
+            className="game-dialog game-dialog--result"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="result-title"
+          >
+            <span className="game-dialog-eyebrow">Match result</span>
+            <strong id="result-title" className="game-dialog-title">{resultTitle}</strong>
+            <strong className="result-score">{summary.score}</strong>
+            <span className="result-meta">
+              Points · {formatTime(summary.elapsedSeconds)} · {resultReason}
+            </span>
+            <span
+              className={registerMatch.isError
+                ? 'registration-status registration-status--error'
+                : 'registration-status'}
+              aria-live="polite"
+            >
+              {registrationLabel}
+            </span>
+            {registerMatch.isError && record && (
+              <button
+                className="registration-retry"
+                type="button"
+                onClick={() => registerMatch.mutate(record)}
+              >
+                Retry registration
+              </button>
+            )}
+            <div className="game-dialog-actions">
+              <GameButton ref={resultButtonRef} onClick={handleRestart}>Play Again</GameButton>
+              <GameButton variant="secondary" onClick={handleExit}>Main Menu</GameButton>
+            </div>
+          </div>
         </div>
       )}
     </section>

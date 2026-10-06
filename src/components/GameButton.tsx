@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, PropsWithChildren } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type PropsWithChildren } from 'react'
 
 type GameButtonProps = PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -7,13 +7,16 @@ type GameButtonProps = PropsWithChildren<
   }
 >
 
-function GameButton({
-  children,
-  variant = 'primary',
-  compact = false,
-  className = '',
-  ...props
-}: GameButtonProps) {
+const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(function GameButton(
+  {
+    children,
+    variant = 'primary',
+    compact = false,
+    className = '',
+    ...props
+  },
+  ref,
+) {
   const classes = [
     'game-button',
     `game-button--${variant}`,
@@ -24,10 +27,10 @@ function GameButton({
     .join(' ')
 
   return (
-    <button className={classes} type="button" {...props}>
+    <button ref={ref} className={classes} type="button" {...props}>
       <span>{children}</span>
     </button>
   )
-}
+})
 
 export default GameButton
