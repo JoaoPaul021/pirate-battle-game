@@ -6,9 +6,10 @@ import {
   type GameOptions,
 } from './config/gameConfig'
 import GameScreen from './screens/GameScreen'
+import HistoryScreen from './screens/HistoryScreen'
 import MainMenu, { type MenuDestination } from './screens/MainMenu'
 import OptionsScreen from './screens/OptionsScreen'
-import PlaceholderScreen from './screens/PlaceholderScreen'
+import RankingScreen from './screens/RankingScreen'
 
 type Screen = 'menu' | MenuDestination
 
@@ -46,23 +47,11 @@ function App() {
     }
 
     if (screen === 'ranking') {
-      return (
-        <PlaceholderScreen
-          title="Ranking"
-          message="Ranking data will be connected to the mocked API in the next integration step."
-          onBack={goToMenu}
-        />
-      )
+      return <RankingScreen options={options} onBack={goToMenu} />
     }
 
     if (screen === 'history') {
-      return (
-        <PlaceholderScreen
-          title="Match History"
-          message="Completed matches will appear here after the API integration step."
-          onBack={goToMenu}
-        />
-      )
+      return <HistoryScreen onBack={goToMenu} />
     }
 
     return <MainMenu onNavigate={handleNavigate} />

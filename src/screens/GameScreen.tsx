@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameConfig } from '../config/gameConfig'
+import { PLAYER_ID, PLAYER_NAME, type MatchRecord } from '../api/contracts'
+import { useRegisterMatch } from '../api/queries'
+import { saveLastMatch } from '../api/storage'
 import TouchControl from '../components/TouchControl'
 import { PirateGame } from '../game/PirateGame'
 import type {
@@ -38,6 +41,14 @@ function GameScreen({ config, onExit }: GameScreenProps) {
   const [paused, setPaused] = useState(false)
   const [pauseReason, setPauseReason] = useState<PauseReason | null>(null)
   const [summary, setSummary] = useState<MatchSummary | null>(null)
+  const [record, setRecord] = useState<MatchRecord | null>(null)
+  const registerMatch = useRegisterMatch()
+  const registerRef = useRef(registerMatch.mutate)
+  const matchIdRef = useRef(crypto.randomUUID())
+
+  useEffect(() => {
+    registerRef.current = registerMatch.mutate
+  }, [registerMatch.mutate])
 
   const healthPercent = useMemo(
     () => Math.max(0, Math.min(100, (hud.health / hud.maxHealth) * 100)),
@@ -63,6 +74,20 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         setPauseReason(reason)
       },
       onMatchEnd: (matchSummary) => {
+        const completedMatch: MatchRecord = {
+          id: matchIdRef.current,
+          playerId: PLAYER_ID,
+          playerName: PLAYER_NAME,
+          completedAt: new Date().toISOString(),
+          score: matchSummary.score,
+          durationSeconds: matchSummary.elapsedSeconds,
+          reason: matchSummary.reason,
+          config,
+        }
+
+        saveLastMatch(completedMatch)
+        setRecord(completedMatch)
+        registerRef.current(completedMatch)
         setSummary(matchSummary)
         setPaused(false)
         setPauseReason(null)
@@ -97,6 +122,9 @@ function GameScreen({ config, onExit }: GameScreenProps) {
     setStatus('loading')
     setErrorMessage('')
     setSummary(null)
+    setRecord(null)
+    registerMatch.reset()
+    matchIdRef.current = crypto.randomUUID()
     setPaused(false)
     setPauseReason(null)
     setHud(createInitialHud(config))
@@ -112,6 +140,13 @@ function GameScreen({ config, onExit }: GameScreenProps) {
   }
 
   const endTitle = summary?.reason === 'destroyed' ? 'Ship destroyed' : "Time's up"
+  const registrationLabel = registerMatch.isPending
+    ? 'Saving match...'
+    : registerMatch.isSuccess
+      ? 'Match registered'
+      : registerMatch.isError
+        ? 'Registration pending'
+        : 'Waiting to register'
 
   return (
     <section className="game-screen" aria-label="Pirate Battle match">
@@ -236,6 +271,12 @@ function GameScreen({ config, onExit }: GameScreenProps) {
         <div className="game-message" role="status">
           <strong>{endTitle}</strong>
           <span>Score: {summary.score} · Time played: {formatTime(summary.elapsedSeconds)}</span>
+          <span className={registerMatch.isError ? 'registration-status registration-status--error' : 'registration-status'}>
+            {registrationLabel}
+          </span>
+          {registerMatch.isError && record && (
+            <button type="button" onClick={() => registerMatch.mutate(record)}>Retry Registration</button>
+          )}
           <button type="button" onClick={handleRestart}>Play Again</button>
           <button type="button" onClick={handleExit}>Main Menu</button>
         </div>

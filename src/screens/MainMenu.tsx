@@ -1,5 +1,6 @@
 import GameButton from '../components/GameButton'
 import MenuPanel from '../components/MenuPanel'
+import PendingMatchNotice from '../components/PendingMatchNotice'
 
 export type MenuDestination = 'game' | 'options' | 'ranking' | 'history'
 
@@ -34,6 +35,8 @@ function MainMenu({ onNavigate }: MainMenuProps) {
           <span><kbd>Q</kbd><kbd>E</kbd> Broadside</span>
         </div>
       </div>
+
+      <PendingMatchNotice />
 
       <div className="secondary-actions">
         <GameButton
