@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { resetState } from './helpers'
+import { gotoApp, reloadApp, resetState } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetState(page)
 })
 
 test('navigates menus and persists validated options', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
   await page.getByRole('button', { name: 'Options' }).click()
 
   const sessionValue = page.locator('.stepper-value').nth(0)
@@ -34,7 +34,7 @@ test('navigates menus and persists validated options', async ({ page }) => {
   await page.getByRole('button', { name: 'Main Menu' }).click()
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible()
 
-  await page.reload()
+  await reloadApp(page)
   await page.getByRole('button', { name: 'Options' }).click()
 
   await expect(sessionValue).toHaveText('150 s')
@@ -50,7 +50,7 @@ test('navigates menus and persists validated options', async ({ page }) => {
 })
 
 test('supports repeated navigation without losing the menu', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
 
   await page.getByRole('button', { name: 'Ranking' }).click()
   await expect(page.getByRole('heading', { name: 'Ranking' })).toBeVisible()
@@ -64,7 +64,7 @@ test('supports repeated navigation without losing the menu', async ({ page }) =>
 })
 
 test('abandoning a match does not create a completed record', async ({ page }) => {
-  await page.goto('/?e2e=1')
+  await gotoApp(page, '/?e2e=1')
   await page.getByRole('button', { name: 'Play' }).click()
   await expect(page.getByRole('button', { name: 'Pause match' })).toBeEnabled()
   await page.getByRole('button', { name: 'Main Menu' }).click()

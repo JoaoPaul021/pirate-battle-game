@@ -14,6 +14,8 @@ function TouchControl({ label, icon, onPress, onRelease }: TouchControlProps) {
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
+      onPress()
+      return
     }
 
     onPress()
@@ -25,6 +27,8 @@ function TouchControl({ label, icon, onPress, onRelease }: TouchControlProps) {
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
     } catch {
+      onRelease()
+      return
     }
 
     onRelease()

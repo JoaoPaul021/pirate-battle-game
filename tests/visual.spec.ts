@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { advanceGame, openGame, resetState } from './helpers'
+import { advanceGame, gotoApp, openGame, resetState } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetState(page)
 })
 
 test('menu visual baseline', async ({ page }) => {
-  await page.goto('/?e2e=1')
+  await gotoApp(page, '/?e2e=1')
   const menu = page.locator('.main-menu')
 
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible()

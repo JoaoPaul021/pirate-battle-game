@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test'
 import {
   advanceGame,
+  gotoApp,
   openGame,
+  reloadApp,
   resetState,
   snapshotGame,
 } from './helpers'
@@ -11,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('navigates the main mobile screens', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Options' }).click()
@@ -27,11 +29,11 @@ test('navigates the main mobile screens', async ({ page }) => {
 })
 
 test('shows a mobile ranking error without blocking navigation', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
   await page.evaluate(() => {
     localStorage.setItem('pirate-battle-network-scenario', 'ranking-error')
   })
-  await page.reload()
+  await reloadApp(page)
 
   await page.getByRole('button', { name: 'Ranking' }).click()
   await expect(page.getByRole('alert')).toContainText('Ranking unavailable', {

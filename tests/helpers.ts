@@ -1,16 +1,61 @@
 import { expect, type Page } from '@playwright/test'
 
+const isAbortedNavigation = (error: unknown) =>
+  error instanceof Error && error.message.includes('ERR_ABORTED')
+
+export const gotoApp = async (page: Page, path = '/') => {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(path, { waitUntil: 'domcontentloaded' })
+      return
+    } catch (error) {
+      lastError = error
+
+      if (!isAbortedNavigation(error) || attempt === 2) {
+        throw error
+      }
+
+      await page.waitForTimeout(150)
+    }
+  }
+
+  throw lastError
+}
+
+export const reloadApp = async (page: Page) => {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      return
+    } catch (error) {
+      lastError = error
+
+      if (!isAbortedNavigation(error) || attempt === 2) {
+        throw error
+      }
+
+      await page.waitForTimeout(150)
+    }
+  }
+
+  throw lastError
+}
+
 export const resetState = async (page: Page) => {
-  await page.goto('/')
+  await gotoApp(page)
   await page.evaluate(() => {
     localStorage.clear()
     localStorage.setItem('pirate-battle-network-scenario', 'success')
   })
-  await page.reload()
+  await reloadApp(page)
 }
 
 export const openGame = async (page: Page, query = 'e2e=1') => {
-  await page.goto(`/?${query}`)
+  await gotoApp(page, `/?${query}`)
   await page.getByRole('button', { name: 'Play' }).click()
   await expect(page.getByTestId('game-canvas').locator('canvas')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pause match' })).toBeEnabled()

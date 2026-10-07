@@ -2,6 +2,7 @@ import { Application } from 'pixi.js'
 import type { GameConfig } from '../config/gameConfig'
 import { GameAudio } from './audio/GameAudio'
 import { GameInput } from './input/GameInput'
+import { FrameProfiler } from './profiling/FrameProfiler'
 import { GameRenderer } from './rendering/GameRenderer'
 import { GameSimulation } from './simulation/GameSimulation'
 import { createSeededRandom, isE2EMode } from './testing/testMode'
@@ -24,6 +25,7 @@ export class PirateGame {
   private readonly app = new Application()
   private readonly input = new GameInput()
   private readonly audio = new GameAudio()
+  private readonly profiler = new FrameProfiler()
   private readonly simulation: GameSimulation
   private renderer?: GameRenderer
   private resizeObserver?: ResizeObserver
@@ -157,7 +159,12 @@ export class PirateGame {
   }
 
   private readonly tick = () => {
-    const deltaSeconds = Math.min(this.app.ticker.deltaMS / 1000, 0.05)
+    const frameMs = this.app.ticker.deltaMS
+    this.profiler.sample(
+      frameMs,
+      1 + this.simulation.enemies.length + this.simulation.projectiles.length,
+    )
+    const deltaSeconds = Math.min(frameMs / 1000, 0.05)
     this.runFrame(deltaSeconds)
   }
 
@@ -180,6 +187,7 @@ export class PirateGame {
       }
 
       this.finishedSent = true
+      this.profiler.complete(summary.elapsedSeconds)
       this.input.clear()
       this.audio.finish(summary.reason)
       this.callbacks.onMatchEnd(summary)

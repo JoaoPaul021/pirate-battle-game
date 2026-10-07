@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { advanceGame, chooseNetworkScenario, openGame, resetState } from './helpers'
+import { advanceGame, chooseNetworkScenario, gotoApp, openGame, reloadApp, resetState } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await resetState(page)
 })
 
 test('paginates ranking and match history', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
   await page.getByRole('button', { name: 'Ranking' }).click()
   await expect(page.getByText('Maria Silva')).toBeVisible()
   await expect(page.getByText(/Page 1 of/)).toBeVisible()
@@ -21,7 +21,7 @@ test('paginates ranking and match history', async ({ page }) => {
 })
 
 test('shows empty and error states without blocking navigation', async ({ page }) => {
-  await page.goto('/')
+  await gotoApp(page)
   await page.getByRole('button', { name: 'Ranking' }).click()
   await expect(page.getByText('Maria Silva')).toBeVisible()
 
@@ -67,7 +67,7 @@ test('keeps a failed registration pending across refresh and retries it later', 
   await expect(page.getByText('Registration pending')).toBeVisible()
 
   await page.getByRole('dialog').getByRole('button', { name: 'Main Menu', exact: true }).click()
-  await page.reload()
+  await reloadApp(page)
   await expect(page.getByText('1 match waiting to sync.')).toBeVisible({ timeout: 10_000 })
 
   await page.evaluate(() => {
