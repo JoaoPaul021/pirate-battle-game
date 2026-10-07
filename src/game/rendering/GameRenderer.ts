@@ -7,6 +7,7 @@ import {
   type Application,
 } from 'pixi.js'
 import type { GameConfig } from '../../config/gameConfig'
+import { shouldFailAssetLoading } from '../testing/testMode'
 import type { GameSimulation } from '../simulation/GameSimulation'
 import type { EnemyState, GameEvent, ProjectileState } from '../types'
 
@@ -59,7 +60,11 @@ type VisualEffect = {
 const loadTextures = async (): Promise<AssetTextures> => {
   const entries = await Promise.all(
     Object.entries(ASSETS).map(async ([key, path]) => {
-      const texture = await Assets.load<Texture>(path)
+      const assetPath =
+        shouldFailAssetLoading() && key === 'playerHealthy'
+          ? '/__e2e_missing_ship__.png'
+          : path
+      const texture = await Assets.load<Texture>(assetPath)
       return [key, texture] as const
     }),
   )

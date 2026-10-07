@@ -9,14 +9,24 @@ type TouchControlProps = {
 
 function TouchControl({ label, icon, onPress, onRelease }: TouchControlProps) {
   const handlePointerDown: PointerEventHandler<HTMLButtonElement> = (event) => {
-    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+    }
+
     onPress()
   }
 
   const handlePointerUp: PointerEventHandler<HTMLButtonElement> = (event) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    } catch {
     }
+
     onRelease()
   }
 

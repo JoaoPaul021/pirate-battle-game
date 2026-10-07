@@ -6,6 +6,7 @@ import { saveLastMatch } from '../api/storage'
 import GameButton from '../components/GameButton'
 import TouchControl from '../components/TouchControl'
 import { PirateGame } from '../game/PirateGame'
+import { isE2EMode } from '../game/testing/testMode'
 import type {
   GameHudState,
   InputAction,
@@ -16,6 +17,15 @@ import type {
 type GameScreenProps = {
   config: GameConfig
   onExit: () => void
+}
+
+type PirateTestWindow = Window & {
+  __pirateBattleTest?: {
+    advance: (seconds: number) => void
+    snapshot: () => ReturnType<PirateGame['getDebugState']>
+    setAction: (action: InputAction, active: boolean) => void
+    simulateFocusLoss: () => void
+  }
 }
 
 const formatTime = (seconds: number) => {
@@ -111,10 +121,25 @@ function GameScreen({ config, onExit }: GameScreenProps) {
     })
 
     gameRef.current = game
+
+    if (isE2EMode()) {
+      ;(window as PirateTestWindow).__pirateBattleTest = {
+        advance: (seconds) => game.advanceForTesting(seconds),
+        snapshot: () => game.getDebugState(),
+        setAction: (action, active) => game.setAction(action, active),
+        simulateFocusLoss: () => game.simulateFocusLossForTesting(),
+      }
+    }
+
     void game.init()
 
     return () => {
       gameRef.current = null
+
+      if ((window as PirateTestWindow).__pirateBattleTest) {
+        delete (window as PirateTestWindow).__pirateBattleTest
+      }
+
       game.destroy()
     }
   }, [config, runId])
@@ -200,9 +225,14 @@ function GameScreen({ config, onExit }: GameScreenProps) {
             alt=""
           />
         </button>
-        <button className="game-exit-button" type="button" onClick={handleExit}>
+        <button
+          className="game-exit-button"
+          type="button"
+          onClick={handleExit}
+          aria-label="Main Menu"
+        >
           <img src="/png/default/ui/controls/icon_home.png" alt="" />
-          <span>Main Menu</span>
+          <span aria-hidden="true">Main Menu</span>
         </button>
       </div>
 

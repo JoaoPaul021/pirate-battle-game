@@ -167,6 +167,19 @@ export class GameSimulation {
     return this.score
   }
 
+  getDebugState() {
+    return {
+      player: { ...this.player },
+      enemies: this.enemies.map((enemy) => ({ ...enemy })),
+      projectiles: this.projectiles.map((projectile) => ({ ...projectile })),
+      score: this.score,
+      elapsedMs: this.elapsedMs,
+      remainingSeconds: this.getRemainingSeconds(),
+      finished: this.finished,
+      endReason: this.endReason,
+    }
+  }
+
   isFinished() {
     return this.finished
   }

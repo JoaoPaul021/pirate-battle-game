@@ -4,6 +4,7 @@ import { GameAudio } from './audio/GameAudio'
 import { GameInput } from './input/GameInput'
 import { GameRenderer } from './rendering/GameRenderer'
 import { GameSimulation } from './simulation/GameSimulation'
+import { createSeededRandom, isE2EMode } from './testing/testMode'
 import type {
   GameHudState,
   InputAction,
@@ -38,7 +39,10 @@ export class PirateGame {
     private readonly config: GameConfig,
     private readonly callbacks: PirateGameCallbacks,
   ) {
-    this.simulation = new GameSimulation(config)
+    this.simulation = new GameSimulation(
+      config,
+      isE2EMode() ? createSeededRandom() : Math.random,
+    )
   }
 
   async init() {
@@ -71,10 +75,12 @@ export class PirateGame {
       })
       this.resizeObserver.observe(this.host)
       this.input.attach()
-      window.addEventListener('blur', this.handleFocusLoss)
       window.addEventListener('keydown', this.handlePauseKey)
-      document.addEventListener('visibilitychange', this.handleVisibilityChange)
-      this.app.ticker.add(this.tick)
+      if (!isE2EMode()) {
+        window.addEventListener('blur', this.handleFocusLoss)
+        document.addEventListener('visibilitychange', this.handleVisibilityChange)
+        this.app.ticker.add(this.tick)
+      }
       this.ready = true
       this.audio.start()
       this.emitHud(true)
@@ -151,11 +157,15 @@ export class PirateGame {
   }
 
   private readonly tick = () => {
+    const deltaSeconds = Math.min(this.app.ticker.deltaMS / 1000, 0.05)
+    this.runFrame(deltaSeconds)
+  }
+
+  private runFrame(deltaSeconds: number) {
     if (!this.ready || this.destroyed || this.paused) {
       return
     }
 
-    const deltaSeconds = Math.min(this.app.ticker.deltaMS / 1000, 0.05)
     this.simulation.update(deltaSeconds, this.input.getState())
     const events = this.simulation.consumeEvents()
     this.renderer?.renderFrame(deltaSeconds, events)
@@ -174,6 +184,30 @@ export class PirateGame {
       this.audio.finish(summary.reason)
       this.callbacks.onMatchEnd(summary)
     }
+  }
+
+  advanceForTesting(seconds: number) {
+    if (!isE2EMode() || seconds <= 0) {
+      return
+    }
+
+    let remaining = seconds
+
+    while (remaining > 0 && !this.simulation.isFinished()) {
+      const step = Math.min(remaining, 1 / 60)
+      this.runFrame(step)
+      remaining -= step
+    }
+  }
+
+  simulateFocusLossForTesting() {
+    if (isE2EMode()) {
+      this.pause('focus')
+    }
+  }
+
+  getDebugState() {
+    return this.simulation.getDebugState()
   }
 
   private emitHud(force: boolean) {

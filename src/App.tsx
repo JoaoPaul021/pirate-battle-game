@@ -6,6 +6,7 @@ import {
   type GameOptions,
 } from './config/gameConfig'
 import GameScreen from './screens/GameScreen'
+import { applyE2EConfig } from './game/testing/testMode'
 import HistoryScreen from './screens/HistoryScreen'
 import MainMenu, { type MenuDestination } from './screens/MainMenu'
 import OptionsScreen from './screens/OptionsScreen'
@@ -25,7 +26,7 @@ function App() {
 
   const handleNavigate = (destination: MenuDestination) => {
     if (destination === 'game') {
-      setMatchConfig(createGameConfig(options))
+      setMatchConfig(applyE2EConfig(createGameConfig(options)))
     }
 
     setScreen(destination)

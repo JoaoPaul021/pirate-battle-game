@@ -12,7 +12,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
-    "mocks:init": "msw init assets --save"
+    "mocks:init": "msw init assets --save",
+    "test:e2e:update": "playwright test tests/visual.spec.ts --update-snapshots",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.87.1",
